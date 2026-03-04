@@ -44,24 +44,19 @@ def woody(x, tol=0.1, max_it=100, max_shift=None):
     x : np.ndarray, shape (n_timepoints, n_trials)
         Signal matrix. Each column is one trial.
     tol : float, optional
-        Convergence tolerance: iteration stops when
-        ``|mean_corr_current - mean_corr_previous| < tol``. Default: 0.1.
+        Convergence tolerance. Default: 0.1.
     max_it : int, optional
         Maximum number of iterations. Default: 100.
     max_shift : int or None, optional
         Maximum lag (in samples) to consider during cross-correlation peak
-        search. Restricting this range is strongly recommended at low SNR to
-        avoid spurious alignments at the edges of the cross-correlation
-        function. If None, the full range is searched. Default: None.
+        search. If None, the full range is searched. Default: None.
 
     Returns
     -------
     template : np.ndarray, shape (n_timepoints,)
         Final latency-aligned average waveform.
     est_lags : np.ndarray, shape (n_trials,)
-        Estimated lag for each trial in samples. A positive lag means the trial
-        was shifted to the right (i.e., the trial peak was delayed relative to
-        the template).
+        Estimated lag for each trial in samples.
     p : float
         Mean Pearson correlation between each aligned trial and the final
         template, used as the convergence criterion.
@@ -143,14 +138,8 @@ def woody_stochastic(
     """
     Stochastic Woody filter with random initialisation.
 
-    Runs the Woody filter ``n_runs`` times, each starting from a different
-    random per-trial lag offset drawn uniformly from
-    ``[-max_lag_init, +max_lag_init]``. The run that yields the highest
-    mean Pearson correlation with the final template is returned.
-
     Random initialisation helps escape local cross-correlation maxima that
-    can trap the deterministic algorithm, particularly at low SNR or when
-    the true jitter distribution is wide.
+    can trap the deterministic algorithm.
 
     Parameters
     ----------
@@ -181,13 +170,6 @@ def woody_stochastic(
         best run.
     best_corr : float
         Mean Pearson correlation of the best run.
-
-    Notes
-    -----
-    The total lag returned as ``best_lags`` is the sum of the random
-    initialisation offset and the lag estimated by the deterministic Woody
-    filter on the pre-shifted data. This represents the full shift applied
-    to each trial relative to the original input ``x``.
 
     """
     n_timepoints, n_trials = x.shape
