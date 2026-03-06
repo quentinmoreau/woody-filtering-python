@@ -25,6 +25,43 @@ from scipy.signal import correlate
 from scipy.stats import pearsonr
 
 
+def _shift_with_zeros(trial, lag):
+    """
+    Shift a 1D signal with zero fill.
+
+    Lag convention:
+        lag > 0  => shift LEFT by lag samples (to compensate a delayed trial)
+        lag < 0  => shift RIGHT by |lag| samples
+
+    Parameters
+    ----------
+    trial : np.ndarray, shape (n_timepoints)
+        trial vector.
+    lag : int
+        lag to shift vector by.
+
+    Returns
+    -------
+    shifted : np.ndarray, shape (n_timepoints,)
+        Shifted trial vector.
+    """
+    trial = np.asarray(trial)
+    if trial.ndim != 1:
+        raise ValueError("trial must be 1D.")
+    n = trial.size
+    shifted = np.zeros_like(trial)
+
+    if lag > 0:
+        shifted[: n - lag] = trial[lag:]
+    elif lag < 0:
+        k = -lag
+        shifted[k:] = trial[: n - k]
+    else:
+        shifted[:] = trial
+
+    return shifted
+
+
 def woody(x, tol=0.1, max_it=100, max_shift=None):
     """
     Iterative Woody filter for aligning single-trial epochs with temporal jitter.
@@ -99,13 +136,7 @@ def woody(x, tol=0.1, max_it=100, max_shift=None):
             est_lags[i] = lag
 
             # Shift trial to align with template
-            if lag > 0:
-                aligned_trials[: n_timepoints - lag, i] = trial[lag:]
-            elif lag < 0:
-                lag_abs = abs(lag)
-                aligned_trials[lag_abs:, i] = trial[: n_timepoints - lag_abs]
-            else:
-                aligned_trials[:, i] = trial
+            aligned_trials[:,i] = _shift_with_zeros(trial, lag)
 
         # Update template as the mean of aligned trials
         template = np.mean(aligned_trials, axis=1)
@@ -188,12 +219,7 @@ def woody_stochastic(
         x_shifted = np.zeros_like(x)
         for i in range(n_trials):
             lag = init_lags[i]
-            if lag > 0:
-                x_shifted[: n_timepoints - lag, i] = x[lag:, i]
-            elif lag < 0:
-                x_shifted[-lag:, i] = x[: n_timepoints + lag, i]
-            else:
-                x_shifted[:, i] = x[:, i]
+            x_shifted[:, i] = _shift_with_zeros(x[:, i], lag)
 
         try:
             aligned_avg, detected_lags, p = woody(
